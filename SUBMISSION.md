@@ -45,7 +45,7 @@ The novel part is using Filecoin for operational accountability, not just file u
 
 ## Repository
 
-To be filled after GitHub push.
+https://github.com/neelpote/ai-incident-black-box
 
 ## Live Demo
 
