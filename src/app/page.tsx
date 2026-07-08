@@ -1,5 +1,5 @@
-import { IncidentConsole } from "@/components/incident-console";
+import { ProductHome } from "@/components/product-home";
 
 export default function Home() {
-  return <IncidentConsole />;
+  return <ProductHome />;
 }
