@@ -36,6 +36,8 @@ npm run start
 
 ## Demo Flow
 
+Live demo: [https://filecoin-two.vercel.app](https://filecoin-two.vercel.app)
+
 1. Click `Load sample incident`.
 2. Click `Analyze incident`.
 3. Review the root cause, immediate fix, unknowns, and replay timeline.
