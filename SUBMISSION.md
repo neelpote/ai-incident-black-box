@@ -52,3 +52,7 @@ https://github.com/neelpote/ai-incident-black-box
 ## Live Demo
 
 https://filecoin-two.vercel.app
+
+## Recorded Demo
+
+https://github.com/neelpote/ai-incident-black-box/blob/main/demo/ai-incident-black-box-demo.webm

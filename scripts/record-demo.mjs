@@ -39,7 +39,7 @@ await page.getByText("Demo simulation", { exact: true }).waitFor();
 await pause(2000);
 
 await page.getByRole("button", { name: "Retrieve capsule" }).click();
-await page.getByText("CAPSULE RETRIEVED", { exact: true }).waitFor();
+await page.getByText("Capsule retrieved", { exact: true }).waitFor();
 await pause(2200);
 
 await page.getByRole("button", { name: "Verify receipt" }).click();
