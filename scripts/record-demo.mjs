@@ -35,8 +35,12 @@ await page.getByRole("button", { name: "Analyze incident" }).click();
 await pause(2400);
 
 await page.getByRole("button", { name: "Store capsule" }).click();
-await page.getByText("Mock Filecoin", { exact: true }).waitFor();
+await page.getByText("Demo simulation", { exact: true }).waitFor();
 await pause(2000);
+
+await page.getByRole("button", { name: "Retrieve capsule" }).click();
+await page.getByText("CAPSULE RETRIEVED", { exact: true }).waitFor();
+await pause(2200);
 
 await page.getByRole("button", { name: "Verify receipt" }).click();
 await page.getByText("VERIFIED", { exact: true }).waitFor();

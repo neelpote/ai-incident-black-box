@@ -1,13 +1,16 @@
 import type {
   IncidentCapsule,
+  RetrievalResult,
   StorageReceipt,
   VerificationResult,
 } from "@/lib/types";
 import {
+  retrieveFilecoinPinCapsule,
   storeCapsuleWithFilecoinPin,
   verifyFilecoinPinReceipt,
 } from "@/lib/storage/filecoin-pin";
 import {
+  retrieveMockFilecoinCapsule,
   storeCapsuleOnMockFilecoin,
   verifyMockFilecoinReceipt,
 } from "@/lib/storage/mock-filecoin";
@@ -37,4 +40,15 @@ export async function verifyCapsule(
   }
 
   return verifyMockFilecoinReceipt(capsule, receipt);
+}
+
+export async function retrieveCapsule(
+  capsule: IncidentCapsule,
+  receipt: StorageReceipt,
+): Promise<RetrievalResult> {
+  if (receipt.mode === "filecoin-pin") {
+    return retrieveFilecoinPinCapsule(receipt);
+  }
+
+  return retrieveMockFilecoinCapsule(capsule, receipt);
 }

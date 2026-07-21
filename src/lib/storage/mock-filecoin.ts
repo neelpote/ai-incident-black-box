@@ -1,6 +1,7 @@
 import { fakeCidFromHash, fakePieceCidFromHash, stableStringify } from "@/lib/hash";
 import type {
   IncidentCapsule,
+  RetrievalResult,
   StorageReceipt,
   VerificationResult,
 } from "@/lib/types";
@@ -40,5 +41,23 @@ export function verifyMockFilecoinReceipt(
       ? "This incident capsule matches the Filecoin-backed archive receipt."
       : "The archive receipt does not match the current incident capsule.",
     receipt,
+  };
+}
+
+export async function retrieveMockFilecoinCapsule(
+  capsule: IncidentCapsule,
+  receipt: StorageReceipt,
+): Promise<RetrievalResult> {
+  const verification = verifyMockFilecoinReceipt(capsule, receipt);
+
+  return {
+    status: verification.status === "verified" ? "retrieved" : "failed",
+    retrievedAt: new Date().toISOString(),
+    message:
+      verification.status === "verified"
+        ? "Demo retrieval reconstructed the capsule from the mock Filecoin receipt."
+        : "Mock receipt does not match the current incident capsule.",
+    receipt,
+    capsule: verification.status === "verified" ? capsule : undefined,
   };
 }

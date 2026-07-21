@@ -18,7 +18,7 @@ AI Incident Black Box is a DevOps incident agent that turns outage evidence into
 
 The app is for startup engineering teams and on-call developers who need an audit trail after production incidents. Instead of losing context across Slack threads, dashboards, and AI chat sessions, teams get a replayable postmortem bundle with a CID, piece CID, evidence manifest, and verification flow.
 
-Filecoin is used as the trust layer for incident memory. In real mode, the server stores the Incident Capsule through Filecoin Pin and verifies the record by retrieving the archived JSON and comparing hashes. Mock mode is included for demos without wallet credentials, but the storage boundary is wired for Filecoin Pin on Calibration or mainnet.
+Filecoin is used as the trust layer for incident memory. In real mode, the server stores the Incident Capsule through Filecoin Pin on Calibration or mainnet, uses USDFC auto-funding for the storage payment runway, retrieves the archived JSON, reconstructs the capsule, and compares hashes. A clearly labeled demo simulation is included for no-key previews, but only a `Filecoin Pin` receipt represents a configured real archive.
 
 ## Pitch
 
@@ -31,8 +31,9 @@ The novel part is using Filecoin for operational accountability, not just file u
 - Generates an Incident Capsule containing raw evidence, timeline, root cause, recommended fix, postmortem, and manifest hashes.
 - Stores the capsule through Filecoin Pin when `FILECOIN_STORAGE_MODE=filecoin-pin`.
 - Returns an IPFS root CID, Filecoin piece CID when available, network, size, and retrieval URL.
-- Verifies by retrieving the archived capsule and comparing stored manifest/capsule hashes.
-- Includes mock mode for no-key demos while keeping the same receipt and verification interface.
+- Invokes Filecoin Pin with `--auto-fund` to maintain USDFC funds in Filecoin Pay; runway and maximum balance are configured server-side.
+- Retrieves the archived capsule from the receipt's retrieval URL, reconstructs the incident record in the UI, and then verifies stored manifest/capsule hashes.
+- Includes a clearly labeled demo simulation for no-key previews while keeping the same receipt interface.
 
 ## Demo Flow
 
@@ -41,7 +42,8 @@ The novel part is using Filecoin for operational accountability, not just file u
 3. Review severity, root cause, immediate fix, unknowns, and replay timeline.
 4. Store the Incident Capsule.
 5. Review CID, piece CID, network, retrieval URL, and manifest hash.
-6. Verify the receipt.
+6. Retrieve the archived capsule and inspect the reconstructed incident record.
+7. Verify the receipt.
 
 ## Repository
 

@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import { sha256, stableStringify } from "@/lib/hash";
 import type {
   IncidentCapsule,
+  RetrievalResult,
   StorageReceipt,
   VerificationResult,
 } from "@/lib/types";
@@ -88,6 +89,17 @@ export async function storeCapsuleWithFilecoinPin(
     `capsuleHash=${capsule.capsuleHash}`,
   ];
 
+  const minimumRunwayDays = process.env.FILECOIN_MIN_RUNWAY_DAYS;
+  const maximumBalanceUsdfc = process.env.FILECOIN_MAX_BALANCE_USDFC;
+
+  if (minimumRunwayDays) {
+    args.push("--min-runway-days", minimumRunwayDays);
+  }
+
+  if (maximumBalanceUsdfc) {
+    args.push("--max-balance", maximumBalanceUsdfc);
+  }
+
   const { stdout, stderr } = await execFileAsync(command, args, {
     cwd: process.cwd(),
     env: {
@@ -128,30 +140,19 @@ export async function verifyFilecoinPinReceipt(
   capsule: IncidentCapsule,
   receipt: StorageReceipt,
 ): Promise<VerificationResult> {
-  if (!receipt.retrievalUrl.startsWith("http")) {
+  const retrieval = await retrieveFilecoinPinCapsule(receipt);
+
+  if (retrieval.status === "failed" || !retrieval.capsule) {
     return {
       status: "failed",
       checkedAt: new Date().toISOString(),
-      message: "Real Filecoin verification requires an HTTP retrieval URL.",
+      message: retrieval.message,
       receipt,
+      retrievedHash: retrieval.retrievedHash,
     };
   }
 
-  const response = await fetch(receipt.retrievalUrl, {
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    return {
-      status: "failed",
-      checkedAt: new Date().toISOString(),
-      message: `Retrieval failed with HTTP ${response.status}.`,
-      receipt,
-    };
-  }
-
-  const storedCapsule = (await response.json()) as IncidentCapsule;
-  const retrievedHash = await sha256(stableStringify(storedCapsule));
+  const storedCapsule = retrieval.capsule;
   const ok =
     storedCapsule.capsuleHash === capsule.capsuleHash &&
     storedCapsule.manifestHash === capsule.manifestHash &&
@@ -165,6 +166,44 @@ export async function verifyFilecoinPinReceipt(
       ? "Retrieved capsule matches the Filecoin Pin archive receipt."
       : "Retrieved capsule does not match the current incident capsule.",
     receipt,
+    retrievedHash: retrieval.retrievedHash,
+  };
+}
+
+export async function retrieveFilecoinPinCapsule(
+  receipt: StorageReceipt,
+): Promise<RetrievalResult> {
+  if (!receipt.retrievalUrl.startsWith("http")) {
+    return {
+      status: "failed",
+      retrievedAt: new Date().toISOString(),
+      message: "Real Filecoin verification requires an HTTP retrieval URL.",
+      receipt,
+    };
+  }
+
+  const response = await fetch(receipt.retrievalUrl, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    return {
+      status: "failed",
+      retrievedAt: new Date().toISOString(),
+      message: `Retrieval failed with HTTP ${response.status}.`,
+      receipt,
+    };
+  }
+
+  const storedCapsule = (await response.json()) as IncidentCapsule;
+  const retrievedHash = await sha256(stableStringify(storedCapsule));
+
+  return {
+    status: "retrieved",
+    retrievedAt: new Date().toISOString(),
+    message: "Incident capsule retrieved from the Filecoin Pin retrieval URL.",
+    receipt,
+    capsule: storedCapsule,
     retrievedHash,
   };
 }

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clipboard,
   Database,
+  Download,
   FileClock,
   Loader2,
   Play,
@@ -23,6 +24,7 @@ import type {
   IncidentAnalysis,
   IncidentCapsule,
   IncidentDraft,
+  RetrievalResult,
   StorageReceipt,
   VerificationResult,
 } from "@/lib/types";
@@ -33,6 +35,8 @@ type Stage =
   | "capsule"
   | "storing"
   | "stored"
+  | "retrieving"
+  | "retrieved"
   | "verifying"
   | "verified"
   | "failed";
@@ -90,6 +94,7 @@ export function IncidentConsole() {
   const [verification, setVerification] = useState<VerificationResult | null>(
     null,
   );
+  const [retrieval, setRetrieval] = useState<RetrievalResult | null>(null);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [stage, setStage] = useState<Stage>("idle");
 
@@ -102,6 +107,7 @@ export function IncidentConsole() {
     setStage("analyzing");
     setReceipt(null);
     setVerification(null);
+    setRetrieval(null);
     setStorageError(null);
     const nextAnalysis = analyzeIncident(incident);
     const nextCapsule = await buildCapsule(incident, nextAnalysis);
@@ -135,6 +141,7 @@ export function IncidentConsole() {
 
       setReceipt(body.receipt);
       setVerification(null);
+      setRetrieval(null);
       setStage("stored");
     } catch (error) {
       setStorageError(error instanceof Error ? error.message : "Storage failed.");
@@ -175,12 +182,46 @@ export function IncidentConsole() {
     }
   }
 
+  async function retrieveStoredCapsule() {
+    if (!capsule || !receipt) {
+      return;
+    }
+
+    setStage("retrieving");
+    setStorageError(null);
+
+    try {
+      const response = await fetch("/api/storage/retrieve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capsule, receipt }),
+      });
+      const body = (await response.json()) as {
+        retrieval?: RetrievalResult;
+        error?: string;
+      };
+
+      if (!response.ok || !body.retrieval) {
+        throw new Error(body.error ?? "Retrieval failed.");
+      }
+
+      setRetrieval(body.retrieval);
+      setStage(body.retrieval.status === "retrieved" ? "retrieved" : "failed");
+    } catch (error) {
+      setStorageError(
+        error instanceof Error ? error.message : "Retrieval failed.",
+      );
+      setStage("failed");
+    }
+  }
+
   function loadSample() {
     setIncident(sampleIncident);
     setAnalysis(null);
     setCapsule(null);
     setReceipt(null);
     setVerification(null);
+    setRetrieval(null);
     setStorageError(null);
     setStage("idle");
   }
@@ -234,11 +275,14 @@ export function IncidentConsole() {
                 capsule={capsule}
                 receipt={receipt}
                 verification={verification}
+                retrieval={retrieval}
                 storageError={storageError}
                 isStoring={stage === "storing"}
                 isVerifying={stage === "verifying"}
+                isRetrieving={stage === "retrieving"}
                 onStore={storeCapsule}
                 onVerify={verifyCapsule}
+                onRetrieve={retrieveStoredCapsule}
               />
             </div>
           </section>
@@ -617,20 +661,26 @@ function ArchivePanel({
   capsule,
   receipt,
   verification,
+  retrieval,
   storageError,
   isStoring,
   isVerifying,
+  isRetrieving,
   onStore,
   onVerify,
+  onRetrieve,
 }: {
   capsule: IncidentCapsule | null;
   receipt: StorageReceipt | null;
   verification: VerificationResult | null;
+  retrieval: RetrievalResult | null;
   storageError: string | null;
   isStoring: boolean;
   isVerifying: boolean;
+  isRetrieving: boolean;
   onStore: () => void;
   onVerify: () => void;
+  onRetrieve: () => void;
 }) {
   return (
     <section className="min-w-0 border border-[var(--line)] bg-[rgba(27,29,31,0.96)]">
@@ -655,7 +705,7 @@ function ArchivePanel({
               receipt
                 ? receipt.mode === "filecoin-pin"
                   ? "Filecoin Pin"
-                  : "Mock Filecoin"
+                  : "Demo simulation"
                 : "Not stored"
             }
           />
@@ -674,6 +724,11 @@ function ArchivePanel({
             <ReceiptRow label="Network" value={receipt.network} />
             <ReceiptRow label="Size" value={`${receipt.sizeBytes} bytes`} />
             <ReceiptRow label="Retrieval" value={receipt.retrievalUrl} />
+            <div className="border border-[var(--line)] bg-[var(--recorder-black)] p-3 text-sm leading-6 text-[var(--muted-paper)]">
+              {receipt.mode === "filecoin-pin"
+                ? "Real archive: Filecoin Pin uploads with USDFC auto-funding enabled for the configured runway."
+                : "Demo archive: simulated receipt only. Configure Filecoin Pin with a funded Calibration wallet for a real on-chain archive."}
+            </div>
           </div>
         ) : (
           <div className="border border-dashed border-[var(--line)] p-4 text-sm leading-6 text-[var(--muted-paper)]">
@@ -727,7 +782,49 @@ function ArchivePanel({
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        {retrieval ? (
+          <div
+            className={`border p-4 ${
+              retrieval.status === "retrieved"
+                ? "border-[var(--proof-cyan)]"
+                : "border-[var(--failure-red)]"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Download
+                className={
+                  retrieval.status === "retrieved"
+                    ? "text-[var(--proof-cyan)]"
+                    : "text-[var(--failure-red)]"
+                }
+                size={18}
+              />
+              <p className="font-mono text-xs uppercase tracking-[0.16em]">
+                {retrieval.status === "retrieved"
+                  ? "Capsule retrieved"
+                  : "Retrieval failed"}
+              </p>
+            </div>
+            <p className="mt-2 text-sm text-[var(--muted-paper)]">
+              {retrieval.message}
+            </p>
+            {retrieval.capsule ? (
+              <div className="mt-3 border border-[var(--line)] bg-[var(--recorder-black)] p-3">
+                <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--proof-cyan)]">
+                  Reconstructed capsule
+                </p>
+                <p className="mt-2 text-sm font-medium">
+                  {retrieval.capsule.incident.title}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-[var(--muted-paper)]">
+                  {retrieval.capsule.analysis.rootCause.primary}
+                </p>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
+        <div className="grid gap-3 sm:grid-cols-3">
           <button
             className="inline-flex h-11 items-center justify-center gap-2 border border-[var(--signal-amber)] px-3 text-sm font-semibold text-[var(--signal-amber)] transition hover:bg-[var(--signal-amber)] hover:text-[var(--recorder-black)] disabled:cursor-not-allowed disabled:opacity-50"
             disabled={!capsule || isStoring}
@@ -736,6 +833,15 @@ function ArchivePanel({
           >
             {isStoring ? <Loader2 className="animate-spin" size={16} /> : <Database size={16} />}
             {isStoring ? "Storing" : "Store capsule"}
+          </button>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 border border-[var(--paper-white)] px-3 text-sm font-semibold text-[var(--paper-white)] transition hover:bg-[var(--paper-white)] hover:text-[var(--recorder-black)] disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!receipt || isRetrieving}
+            onClick={onRetrieve}
+            type="button"
+          >
+            {isRetrieving ? <Loader2 className="animate-spin" size={16} /> : <Download size={16} />}
+            {isRetrieving ? "Retrieving" : "Retrieve capsule"}
           </button>
           <button
             className="inline-flex h-11 items-center justify-center gap-2 border border-[var(--proof-cyan)] px-3 text-sm font-semibold text-[var(--proof-cyan)] transition hover:bg-[var(--proof-cyan)] hover:text-[var(--recorder-black)] disabled:cursor-not-allowed disabled:opacity-50"

@@ -6,6 +6,7 @@ import { sampleIncident } from "@/lib/fixtures/sample-incident";
 import { sha256 } from "@/lib/hash";
 import { parseFilecoinPinAddOutput } from "@/lib/storage/filecoin-pin";
 import {
+  retrieveMockFilecoinCapsule,
   storeCapsuleOnMockFilecoin,
   verifyMockFilecoinReceipt,
 } from "@/lib/storage/mock-filecoin";
@@ -45,6 +46,16 @@ describe("incident capsule", () => {
 
     expect(receipt.cid.startsWith("bafy")).toBe(true);
     expect(verification.status).toBe("verified");
+  });
+
+  it("retrieves a mock capsule from a matching receipt", async () => {
+    const analysis = analyzeIncident(sampleIncident);
+    const capsule = await buildCapsule(sampleIncident, analysis);
+    const receipt = await storeCapsuleOnMockFilecoin(capsule);
+    const retrieval = await retrieveMockFilecoinCapsule(capsule, receipt);
+
+    expect(retrieval.status).toBe("retrieved");
+    expect(retrieval.capsule?.capsuleHash).toBe(capsule.capsuleHash);
   });
 
   it("produces stable sha256 hashes", async () => {

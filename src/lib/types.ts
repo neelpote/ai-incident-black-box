@@ -103,3 +103,12 @@ export type VerificationResult = {
   receipt: StorageReceipt;
   retrievedHash?: string;
 };
+
+export type RetrievalResult = {
+  status: "retrieved" | "failed";
+  retrievedAt: string;
+  message: string;
+  receipt: StorageReceipt;
+  capsule?: IncidentCapsule;
+  retrievedHash?: string;
+};
